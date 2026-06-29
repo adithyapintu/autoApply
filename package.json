@@ -1,0 +1,17 @@
+{
+  "name": "autoapply-ai",
+  "private": true,
+  "packageManager": "pnpm@9.15.0",
+  "scripts": {
+    "dev:web": "pnpm --filter @autoapply/web dev",
+    "build:web": "pnpm --filter @autoapply/web build",
+    "lint:web": "pnpm --filter @autoapply/web lint",
+    "test:web": "pnpm --filter @autoapply/web test",
+    "test:e2e": "pnpm --filter @autoapply/playwright test",
+    "typecheck": "pnpm -r typecheck"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.4"
+  }
+}
+

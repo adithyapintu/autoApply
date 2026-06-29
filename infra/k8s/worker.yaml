@@ -1,0 +1,22 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: autoapply-worker
+spec:
+  replicas: 4
+  selector:
+    matchLabels:
+      app: autoapply-worker
+  template:
+    metadata:
+      labels:
+        app: autoapply-worker
+    spec:
+      containers:
+        - name: worker
+          image: autoapply/api:latest
+          command: ["celery", "-A", "app.worker.celery_app", "worker", "--loglevel=INFO"]
+          envFrom:
+            - secretRef:
+                name: autoapply-secrets
+
