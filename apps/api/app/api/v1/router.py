@@ -10,6 +10,7 @@ from app.modules.jobs.router import router as jobs_router
 from app.modules.notifications.router import router as notifications_router
 from app.modules.profiles.router import router as profiles_router
 from app.modules.resumes.router import router as resumes_router
+from app.modules.searches.router import router as searches_router
 
 api_router = APIRouter()
 api_router.include_router(auth_router, prefix="/auth", tags=["auth"])
@@ -22,4 +23,5 @@ api_router.include_router(ai_router, prefix="/ai", tags=["ai"])
 api_router.include_router(email_router, prefix="/email", tags=["email"])
 api_router.include_router(analytics_router, prefix="/analytics", tags=["analytics"])
 api_router.include_router(notifications_router, prefix="/notifications", tags=["notifications"])
+api_router.include_router(searches_router, prefix="/searches", tags=["searches"])
 

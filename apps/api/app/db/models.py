@@ -1,6 +1,7 @@
 import uuid
 from datetime import UTC, datetime
 
+from pgvector.sqlalchemy import Vector
 from sqlalchemy import Boolean, Date, DateTime, ForeignKey, Integer, Numeric, String, Text, UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -40,12 +41,17 @@ class Profile(Base, TimestampMixin):
     domain_expertise: Mapped[list[str]] = mapped_column(JSONB, default=list)
     preferred_roles: Mapped[list[str]] = mapped_column(JSONB, default=list)
     industries: Mapped[list[str]] = mapped_column(JSONB, default=list)
+    field: Mapped[str | None] = mapped_column(String(120))
+    tech_stacks: Mapped[list[str]] = mapped_column(JSONB, default=list)
     ats_keywords: Mapped[list[str]] = mapped_column(JSONB, default=list)
     location_preferences: Mapped[dict] = mapped_column(JSONB, default=dict)
     work_authorization: Mapped[dict] = mapped_column(JSONB, default=dict)
-
-    user: Mapped[User] = relationship(back_populates="profile")
+    summary: Mapped[str | None] = mapped_column(Text)
+    embedding: Mapped[list[float] | None] = mapped_column(Vector(384), nullable=True)
     skills: Mapped[list["Skill"]] = relationship(cascade="all, delete-orphan")
+    experience: Mapped[list["Experience"]] = relationship(cascade="all, delete-orphan")
+    education: Mapped[list["Education"]] = relationship(cascade="all, delete-orphan")
+    projects: Mapped[list["Project"]] = relationship(cascade="all, delete-orphan")
 
 
 class Skill(Base):
@@ -137,6 +143,7 @@ class Job(Base, TimestampMixin):
     url: Mapped[str] = mapped_column(String(1000))
     status: Mapped[str] = mapped_column(String(64), default="open")
     raw_payload: Mapped[dict] = mapped_column(JSONB, default=dict)
+    embedding: Mapped[list[float] | None] = mapped_column(Vector(384), nullable=True)
 
     company: Mapped[Company] = relationship()
 
@@ -168,6 +175,9 @@ class Application(Base, TimestampMixin):
     interview_stages: Mapped[list[dict]] = mapped_column(JSONB, default=list)
     rejection_reason: Mapped[str | None] = mapped_column(Text)
     offer_details: Mapped[dict | None] = mapped_column(JSONB)
+    referred_by: Mapped[str | None] = mapped_column(String(220))
+    referral_channel: Mapped[str | None] = mapped_column(String(64))
+    applied_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
 class AutomationTask(Base, TimestampMixin):
@@ -228,4 +238,21 @@ class SystemSetting(Base):
     key: Mapped[str] = mapped_column(String(120), primary_key=True)
     value: Mapped[dict] = mapped_column(JSONB)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now_utc, onupdate=now_utc)
+
+
+class SavedSearch(Base, TimestampMixin):
+    __tablename__ = "saved_searches"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    name: Mapped[str] = mapped_column(String(180))
+    source: Mapped[str] = mapped_column(String(64))
+    query: Mapped[str] = mapped_column(String(512), default="")
+    location: Mapped[str | None] = mapped_column(String(220))
+    remote_only: Mapped[bool] = mapped_column(Boolean, default=False)
+    salary_min: Mapped[int | None] = mapped_column(Integer)
+    score_threshold: Mapped[float] = mapped_column(Numeric(5, 2), default=60.0)
+    interval_hours: Mapped[int] = mapped_column(Integer, default=24)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    last_run_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 

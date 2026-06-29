@@ -23,6 +23,10 @@ async def search_jobs(
             "title": job.title,
             "source": job.source,
             "location": job.location,
+            "remote_policy": job.remote_policy,
+            "employment_type": job.employment_type,
+            "salary_min": job.salary_min,
+            "salary_max": job.salary_max,
             "url": job.url,
         }
         for job in jobs
@@ -30,9 +34,48 @@ async def search_jobs(
 
 
 @router.post("/{job_id}/match", response_model=MatchReport)
-async def match_job(job_id: UUID, current_user: CurrentUser) -> MatchReport:
-    return JobMatcher().score(
-        profile={"skills": []},
-        job={"required_skills": []},
-    )
+async def match_job(job_id: UUID, current_user: CurrentUser, uow: UowDep) -> MatchReport:
+    job = await uow.jobs.get(job_id)
+    if job is None:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=404, detail="Job not found")
+
+    profile = await uow.profiles.find_by_user(current_user.id)
+    profile_dict = {"skills": [s.name for s in profile.skills] if profile else []}
+    job_dict = {"required_skills": job.tech_stacks if hasattr(job, "tech_stacks") else []}
+    return JobMatcher().score(profile_dict, job_dict)
+
+
+@router.get("/{job_id}")
+async def get_job(job_id: UUID, current_user: CurrentUser, uow: UowDep) -> dict:
+    job = await uow.jobs.get(job_id)
+    if job is None:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=404, detail="Job not found")
+    return {
+        "id": str(job.id),
+        "title": job.title,
+        "description": job.description,
+        "source": job.source,
+        "location": job.location,
+        "remote_policy": job.remote_policy,
+        "employment_type": job.employment_type,
+        "salary_min": job.salary_min,
+        "salary_max": job.salary_max,
+        "visa_sponsorship": job.visa_sponsorship,
+        "url": job.url,
+        "company": job.company.name if job.company else None,
+        "company_summary": job.company.summary if job.company else None,
+        "has_embedding": job.embedding is not None,
+    }
+async def discover_jobs(
+    current_user: CurrentUser,
+    source: str = Query(...),
+    query: str = Query(default=""),
+    location: str | None = Query(default=None),
+) -> dict[str, str]:
+    """Queue a background job discovery task for the given source."""
+    from app.worker import discover_jobs as discover_task
+    task = discover_jobs_task = discover_task.delay(str(current_user.id), source, query, location)
+    return {"status": "queued", "task_id": task.id, "source": source}
 

@@ -20,9 +20,16 @@ class ConnectorRegistry:
             CompanyPageConnector(),
         ]}
 
-    def get(self, source: str) -> JobConnector:
-        return self._connectors[source]
+    def get(self, source: str) -> JobConnector | None:
+        return self._connectors.get(source)
 
     def all(self) -> list[JobConnector]:
         return list(self._connectors.values())
+
+
+_registry = ConnectorRegistry()
+
+
+def get_connector(source: str) -> JobConnector | None:
+    return _registry.get(source)
 

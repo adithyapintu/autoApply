@@ -30,9 +30,18 @@ services:
       context: ./apps/api
     env_file:
       - .env
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    environment:
+      # Override localhost → container hostname for services inside Docker
+      DATABASE_URL: postgresql+asyncpg://autoapply:autoapply-dev@postgres:5432/autoapply
+      REDIS_URL: redis://redis:6379/0
+      CELERY_BROKER_URL: redis://redis:6379/1
+      CELERY_RESULT_BACKEND: redis://redis:6379/2
+    # Run migrations then start the server
+    command: >
+      sh -c "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
     volumes:
       - ./apps/api:/app
+      - fastembed-cache:/root/.cache/fastembed
     ports:
       - "8000:8000"
     depends_on:
@@ -46,14 +55,36 @@ services:
       context: ./apps/api
     env_file:
       - .env
-    command: celery -A app.worker.celery_app worker --loglevel=INFO
+    environment:
+      DATABASE_URL: postgresql+asyncpg://autoapply:autoapply-dev@postgres:5432/autoapply
+      REDIS_URL: redis://redis:6379/0
+      CELERY_BROKER_URL: redis://redis:6379/1
+      CELERY_RESULT_BACKEND: redis://redis:6379/2
+    command: celery -A app.worker.celery_app worker --loglevel=INFO -Q parsing,discovery,ai,email,notifications,automation
     volumes:
       - ./apps/api:/app
+      - fastembed-cache:/root/.cache/fastembed
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
+
+  beat:
+    build:
+      context: ./apps/api
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql+asyncpg://autoapply:autoapply-dev@postgres:5432/autoapply
+      REDIS_URL: redis://redis:6379/0
+      CELERY_BROKER_URL: redis://redis:6379/1
+      CELERY_RESULT_BACKEND: redis://redis:6379/2
+    command: celery -A app.worker.celery_app beat --loglevel=INFO --scheduler celery.beat:PersistentScheduler
+    volumes:
+      - ./apps/api:/app
+    depends_on:
+      - redis
 
   web:
     build:
@@ -68,3 +99,4 @@ services:
 
 volumes:
   postgres-data:
+  fastembed-cache:

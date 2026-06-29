@@ -1,0 +1,114 @@
+\documentclass[10pt]{article}
+\usepackage[top=0.55in,bottom=0.55in,left=0.75in,right=0.75in]{geometry}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage{microtype}
+\usepackage{parskip}
+\usepackage[nobottomtitles]{titlesec}
+\usepackage{enumitem}
+\usepackage{xcolor}
+\usepackage[hidelinks]{hyperref}
+\usepackage{array}
+\usepackage{tabularx}
+
+\definecolor{accent}{RGB}{71,98,79}
+\definecolor{subtext}{RGB}{80,100,112}
+
+\titleformat{\section}{\normalsize\bfseries\color{accent}\uppercase}{}{0em}{}[{\color{accent}\titlerule[0.5pt]}]
+\titlespacing{\section}{0pt}{8pt}{4pt}
+
+\setlist[itemize]{noitemsep,topsep=1pt,leftmargin=1.4em,label=\textbullet}
+
+\pagestyle{empty}
+
+\newcommand{\entryheader}[4]{%
+  \noindent\textbf{#1}\hfill\textcolor{subtext}{\small #2}\\%
+  \textit{\small\textcolor{subtext}{#3}}\hfill\textit{\small\textcolor{subtext}{#4}}%
+}
+
+\begin{document}
+
+%% -------- HEADER --------
+\begin{center}
+  {\Large\bfseries ((( personal.name )))}\\[4pt]
+  \small
+  ((* if personal.email *))\href{mailto:((( personal.email )))}{((( personal.email )))}((* endif *))
+  ((* if personal.phone *)) \textbf{\textperiodcentered} ((( personal.phone )))((* endif *))
+  ((* if personal.location *)) \textbf{\textperiodcentered} ((( personal.location )))((* endif *))
+  ((* if personal.linkedin *)) \textbf{\textperiodcentered} \href{((( personal.linkedin )))}{LinkedIn}((* endif *))
+  ((* if personal.github *)) \textbf{\textperiodcentered} \href{((( personal.github )))}{GitHub}((* endif *))
+\end{center}
+\vspace{-4pt}
+
+((* if field or tech_stacks *))
+\begin{center}
+  \small\textcolor{subtext}{
+    ((* if field *))((( field )))((* endif *))
+    ((* if field and tech_stacks *))\textbf{\textperiodcentered}((* endif *))
+    ((* if tech_stacks *))((( tech_stacks | join(' \textbf{\textperiodcentered} ') )))((* endif *))
+  }
+\end{center}
+((* endif *))
+
+%% -------- SUMMARY --------
+((* if summary *))
+\section{Summary}
+\noindent((( summary )))
+((* endif *))
+
+%% -------- EXPERIENCE --------
+((* if experience *))
+\section{Experience}
+((* for job in experience *))
+\entryheader{((( job.title )))}{((( job.start_date or '' ))) -- ((( job.end_date or 'Present' )))}{((( job.company )))}{((( job.location or '' )))}
+((* if job.achievements *))
+\begin{itemize}
+((* for ach in job.achievements *))\item ((( ach )))
+((* endfor *))
+\end{itemize}
+((* elif job.description *))\\\small((( job.description )))((* endif *))
+\vspace{6pt}
+((* endfor *))
+((* endif *))
+
+%% -------- SKILLS --------
+((* if skills_by_category *))
+\section{Skills}
+\begin{tabular}{@{}p{1.6in}p{\dimexpr\textwidth-1.9in}@{}}
+((* for cat, items in skills_by_category.items() *))\textbf{((( cat )))} & ((( items | join(', ') ))) \\[2pt]
+((* endfor *))
+\end{tabular}
+((* endif *))
+
+%% -------- PROJECTS --------
+((* if projects *))
+\section{Projects}
+((* for project in projects *))
+\noindent\textbf{((( project.name )))}
+((* if project.links *))\,\href{((( project.links[0] )))}{\small[link]}((* endif *))
+((* if project.description *))\\\small((( project.description )))((* endif *))
+((* if project.skills *))\\\textit{\small\textcolor{subtext}{Stack: ((( project.skills | join(', ') )))}}((* endif *))
+\vspace{6pt}
+((* endfor *))
+((* endif *))
+
+%% -------- EDUCATION --------
+((* if education *))
+\section{Education}
+((* for edu in education *))
+\entryheader{((( edu.institution )))}{((( edu.start_date or '' )))((* if edu.end_date *)) -- ((( edu.end_date )))((* endif *))}{((* if edu.degree *))((( edu.degree )))((* if edu.field *)) in ((( edu.field )))((* endif *))((* endif *))}{((( edu.location or '' )))}
+\vspace{6pt}
+((* endfor *))
+((* endif *))
+
+%% -------- CERTIFICATIONS --------
+((* if certifications *))
+\section{Certifications}
+\begin{itemize}
+((* for cert in certifications *))
+\item \textbf{((( cert.name )))}((* if cert.issuer *)) --- \textit{((( cert.issuer )))}((* endif *))((* if cert.year *)) \textcolor{subtext}{(((( cert.year ))))}((* endif *))
+((* endfor *))
+\end{itemize}
+((* endif *))
+
+\end{document}

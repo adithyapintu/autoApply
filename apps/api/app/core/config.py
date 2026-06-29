@@ -28,15 +28,20 @@ class Settings(BaseSettings):
     google_client_secret: str | None = None
     google_redirect_uri: str | None = None
 
-    openai_api_key: str | None = None
-    openai_model: str = "gpt-4.1"
-    openai_embedding_model: str = "text-embedding-3-large"
+    groq_api_key: str | None = None
+    groq_model: str = "llama-3.3-70b-versatile"
 
     s3_bucket: str = "autoapply-local"
     aws_region: str = "us-east-1"
     kms_key_id: str | None = None
 
     max_upload_mb: int = 10
+
+    smtp_host: str | None = None
+    smtp_port: int = 587
+    smtp_username: str | None = None
+    smtp_password: str | None = None
+    email_from: str = "noreply@autoapply.ai"
 
 
 @lru_cache
