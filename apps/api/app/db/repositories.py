@@ -55,6 +55,8 @@ class ProfileRepository:
         return result.scalar_one_or_none()
 
     async def upsert(self, user_id: UUID, data: dict) -> models.Profile:
+        from sqlalchemy import delete as sa_delete
+
         profile = await self.find_by_user(user_id)
         skills_data = data.pop("skills", None)
         experience_data = data.pop("experience", None)
@@ -71,28 +73,29 @@ class ProfileRepository:
 
         if skills_data is not None:
             await self.session.execute(
-                select(models.Skill).where(models.Skill.profile_id == profile.id)
+                sa_delete(models.Skill).where(models.Skill.profile_id == profile.id)
             )
-            for skill in list(profile.skills):
-                await self.session.delete(skill)
             for s in skills_data:
                 self.session.add(models.Skill(profile_id=profile.id, **s))
 
         if experience_data is not None:
-            for exp in list(profile.experience):
-                await self.session.delete(exp)
+            await self.session.execute(
+                sa_delete(models.Experience).where(models.Experience.profile_id == profile.id)
+            )
             for e in experience_data:
                 self.session.add(models.Experience(profile_id=profile.id, **e))
 
         if education_data is not None:
-            for edu in list(profile.education):
-                await self.session.delete(edu)
+            await self.session.execute(
+                sa_delete(models.Education).where(models.Education.profile_id == profile.id)
+            )
             for edu in education_data:
                 self.session.add(models.Education(profile_id=profile.id, **edu))
 
         if projects_data is not None:
-            for proj in list(profile.projects):
-                await self.session.delete(proj)
+            await self.session.execute(
+                sa_delete(models.Project).where(models.Project.profile_id == profile.id)
+            )
             for p in projects_data:
                 self.session.add(models.Project(profile_id=profile.id, **p))
 
@@ -118,6 +121,7 @@ class ResumeRepository:
         mime_type: str,
         storage_key: str,
         sha256: str,
+        parsed_json: dict | None = None,
     ) -> models.Resume:
         resume = models.Resume(
             user_id=user_id,
@@ -125,6 +129,7 @@ class ResumeRepository:
             mime_type=mime_type,
             storage_key=storage_key,
             sha256=sha256,
+            parsed_json=parsed_json,
         )
         self.session.add(resume)
         await self.session.flush()
@@ -145,6 +150,12 @@ class ResumeRepository:
         resume = await self.session.get(models.Resume, resume_id)
         if resume:
             resume.parsed_json = parsed_json
+            await self.session.flush()
+
+    async def delete(self, resume_id: UUID) -> None:
+        resume = await self.session.get(models.Resume, resume_id)
+        if resume:
+            await self.session.delete(resume)
             await self.session.flush()
 
 
@@ -179,6 +190,12 @@ class JobRepository:
             .limit(limit)
         )
         return list(result.scalars().all())
+
+    async def get_descriptions(self, limit: int = 500) -> list[str]:
+        result = await self.session.execute(
+            select(models.Job.description).limit(limit)
+        )
+        return [row[0] for row in result.all() if row[0]]
 
     async def upsert_from_dto(self, dto: dict) -> models.Job:
         result = await self.session.execute(
@@ -251,6 +268,15 @@ class ApplicationRepository:
         )
         return list(result.scalars().all())
 
+    async def list_with_jobs(self, user_id: UUID) -> list[tuple[models.Application, models.Job | None]]:
+        result = await self.session.execute(
+            select(models.Application, models.Job)
+            .outerjoin(models.Job, models.Application.job_id == models.Job.id)
+            .where(models.Application.user_id == user_id)
+            .order_by(models.Application.created_at.desc())
+        )
+        return [(row[0], row[1]) for row in result.all()]
+
     async def update_status(self, application_id: UUID, status: str) -> None:
         app = await self.session.get(models.Application, application_id)
         if app:
@@ -316,6 +342,48 @@ class SavedSearchRepository:
             await self.session.flush()
 
 
+class TaskLogRepository:
+    def __init__(self, session: AsyncSession):
+        self.session = session
+
+    async def create(self, user_id: UUID, celery_task_id: str, task_name: str, params: dict) -> models.TaskLog:
+        log = models.TaskLog(
+            user_id=user_id,
+            celery_task_id=celery_task_id,
+            task_name=task_name,
+            status="pending",
+            params=params,
+        )
+        self.session.add(log)
+        await self.session.flush()
+        return log
+
+    async def list_for_user(self, user_id: UUID, limit: int = 50) -> list[models.TaskLog]:
+        result = await self.session.execute(
+            select(models.TaskLog)
+            .where(models.TaskLog.user_id == user_id)
+            .order_by(models.TaskLog.created_at.desc())
+            .limit(limit)
+        )
+        return list(result.scalars().all())
+
+    async def get_by_celery_id(self, celery_task_id: str) -> models.TaskLog | None:
+        result = await self.session.execute(
+            select(models.TaskLog).where(models.TaskLog.celery_task_id == celery_task_id)
+        )
+        return result.scalar_one_or_none()
+
+    async def update_status(self, celery_task_id: str, status: str, result: dict | None = None, error: str | None = None) -> None:
+        log = await self.get_by_celery_id(celery_task_id)
+        if log:
+            log.status = status
+            if result is not None:
+                log.result = result
+            if error is not None:
+                log.error = error
+            await self.session.flush()
+
+
 class UnitOfWork:
     def __init__(self, session: AsyncSession):
         self.session = session
@@ -325,6 +393,7 @@ class UnitOfWork:
         self.jobs = JobRepository(session)
         self.applications = ApplicationRepository(session)
         self.saved_searches = SavedSearchRepository(session)
+        self.task_logs = TaskLogRepository(session)
 
     async def commit(self) -> None:
         await self.session.commit()

@@ -10,6 +10,8 @@ RUN corepack enable && \
     echo "shamefully-hoist=true" > .npmrc && \
     pnpm install --frozen-lockfile=false
 COPY . .
+ARG NEXT_PUBLIC_API_URL=http://localhost:8000
+ENV NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL}
 RUN cd /app/apps/web && /app/node_modules/.bin/next build
 
 WORKDIR /app/apps/web

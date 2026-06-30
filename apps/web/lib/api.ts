@@ -1,11 +1,15 @@
 import type {
   AnalyticsSummary,
   ApplicationItem,
+  FunnelData,
   JobItem,
+  MarketData,
   ProfileResponse,
   ResumeItem,
+  SourceRow,
   TokenPair,
   UserResponse,
+  VelocityData,
 } from "@autoapply/shared";
 
 const apiBase = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
@@ -47,6 +51,14 @@ export const api = {
   // Analytics
   analytics: (token: string) =>
     request<AnalyticsSummary>("/api/v1/analytics/summary", {}, token),
+  analyticsFunnel: (token: string) =>
+    request<FunnelData>("/api/v1/analytics/funnel", {}, token),
+  analyticsBySource: (token: string) =>
+    request<SourceRow[]>("/api/v1/analytics/by-source", {}, token),
+  analyticsVelocity: (token: string) =>
+    request<VelocityData>("/api/v1/analytics/velocity", {}, token),
+  analyticsMarket: (token: string) =>
+    request<MarketData>("/api/v1/analytics/market", {}, token),
 
   // Applications
   applications: (token: string) =>
@@ -78,6 +90,8 @@ export const api = {
   // Resumes
   resumes: (token: string) =>
     request<ResumeItem[]>("/api/v1/resumes", {}, token),
+  deleteResume: (id: string, token: string) =>
+    request<void>(`/api/v1/resumes/${id}`, { method: "DELETE" }, token),
   generateResume: (token: string, techStacks?: string[]) => {
     const params = techStacks?.length
       ? "?" + techStacks.map((s) => `tech_stacks=${encodeURIComponent(s)}`).join("&")
@@ -100,6 +114,12 @@ export const api = {
     request<Record<string, string>>(`/api/v1/automation/tasks/${id}/cancel`, { method: "POST" }, token),
   taskScreenshot: (id: string, token: string) =>
     request<{ screenshot: string | null }>(`/api/v1/automation/tasks/${id}/screenshot`, {}, token),
+
+  // Background tasks
+  backgroundTasks: (token: string) =>
+    request<import("@autoapply/shared").BackgroundTask[]>("/api/v1/tasks", {}, token),
+  backgroundTask: (id: string, token: string) =>
+    request<import("@autoapply/shared").BackgroundTask>(`/api/v1/tasks/${id}`, {}, token),
 
   // Saved searches
   savedSearches: (token: string) =>

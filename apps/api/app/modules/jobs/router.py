@@ -46,6 +46,27 @@ async def match_job(job_id: UUID, current_user: CurrentUser, uow: UowDep) -> Mat
     return JobMatcher().score(profile_dict, job_dict)
 
 
+@router.post("/discover")
+async def discover_jobs(
+    current_user: CurrentUser,
+    uow: UowDep,
+    source: str = Query(...),
+    query: str = Query(default=""),
+    location: str | None = Query(default=None),
+) -> dict[str, str]:
+    """Queue a background job discovery task for the given source."""
+    from app.worker import discover_jobs as discover_task
+    task = discover_task.delay(str(current_user.id), source, query, location)
+    await uow.task_logs.create(
+        user_id=current_user.id,
+        celery_task_id=task.id,
+        task_name="discover_jobs",
+        params={"source": source, "query": query, "location": location},
+    )
+    await uow.commit()
+    return {"status": "queued", "task_id": task.id, "source": source}
+
+
 @router.get("/{job_id}")
 async def get_job(job_id: UUID, current_user: CurrentUser, uow: UowDep) -> dict:
     job = await uow.jobs.get(job_id)
@@ -68,14 +89,3 @@ async def get_job(job_id: UUID, current_user: CurrentUser, uow: UowDep) -> dict:
         "company_summary": job.company.summary if job.company else None,
         "has_embedding": job.embedding is not None,
     }
-async def discover_jobs(
-    current_user: CurrentUser,
-    source: str = Query(...),
-    query: str = Query(default=""),
-    location: str | None = Query(default=None),
-) -> dict[str, str]:
-    """Queue a background job discovery task for the given source."""
-    from app.worker import discover_jobs as discover_task
-    task = discover_jobs_task = discover_task.delay(str(current_user.id), source, query, location)
-    return {"status": "queued", "task_id": task.id, "source": source}
-

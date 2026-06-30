@@ -12,6 +12,8 @@ from app.modules.profiles.router import router as profiles_router
 from app.modules.resumes.router import router as resumes_router
 from app.modules.searches.router import router as searches_router
 
+from app.modules.tasks.router import router as tasks_router
+
 api_router = APIRouter()
 api_router.include_router(auth_router, prefix="/auth", tags=["auth"])
 api_router.include_router(resumes_router, prefix="/resumes", tags=["resumes"])
@@ -24,4 +26,5 @@ api_router.include_router(email_router, prefix="/email", tags=["email"])
 api_router.include_router(analytics_router, prefix="/analytics", tags=["analytics"])
 api_router.include_router(notifications_router, prefix="/notifications", tags=["notifications"])
 api_router.include_router(searches_router, prefix="/searches", tags=["searches"])
+api_router.include_router(tasks_router, prefix="/tasks", tags=["tasks"])
 

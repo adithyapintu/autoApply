@@ -30,18 +30,45 @@ async def upload_resume(
 
     sha256 = hashlib.sha256(content).hexdigest()
     storage_key = f"resumes/{current_user.id}/{sha256}/{file.filename}"
+
+    # Extract raw text immediately so the async worker has something to parse
+    initial_parsed: dict | None = None
+    suffix = Path(file.filename or "resume.pdf").suffix or ".pdf"
+    try:
+        with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
+            tmp.write(content)
+            tmp_path = Path(tmp.name)
+        raw_text = parser.extract_text(tmp_path, file.content_type or "")
+        if raw_text.strip():
+            initial_parsed = {"raw_text": raw_text}
+    except Exception:
+        pass
+    finally:
+        try:
+            tmp_path.unlink(missing_ok=True)
+        except Exception:
+            pass
+
     resume = await uow.resumes.create(
         user_id=current_user.id,
         file_name=file.filename or "resume",
         mime_type=file.content_type or "application/octet-stream",
         storage_key=storage_key,
         sha256=sha256,
+        parsed_json=initial_parsed,
     )
     await uow.commit()
 
     # Trigger async AI parsing via Celery
     from app.worker import parse_resume as parse_task
-    parse_task.delay(str(resume.id))
+    task = parse_task.delay(str(resume.id))
+    await uow.task_logs.create(
+        user_id=current_user.id,
+        celery_task_id=task.id,
+        task_name="parse_resume",
+        params={"resume_id": str(resume.id), "file_name": resume.file_name},
+    )
+    await uow.commit()
 
     return {"status": "queued", "resume_id": str(resume.id), "file_name": resume.file_name}
 
@@ -50,6 +77,15 @@ async def upload_resume(
 async def list_resumes(current_user: CurrentUser, uow: UowDep) -> list[ResumeResponse]:
     resumes = await uow.resumes.list_for_user(current_user.id)
     return [ResumeResponse.model_validate(r) for r in resumes]
+
+
+@router.delete("/{resume_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_resume(resume_id: UUID, current_user: CurrentUser, uow: UowDep) -> None:
+    resume = await uow.resumes.get(resume_id)
+    if resume is None or resume.user_id != current_user.id:
+        raise HTTPException(status_code=404, detail="Resume not found")
+    await uow.resumes.delete(resume_id)
+    await uow.commit()
 
 
 @router.post("/{resume_id}/parse", response_model=ParsedResume)

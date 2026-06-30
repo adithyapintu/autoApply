@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BarChart3, Bell, BookOpen, BriefcaseBusiness, FileText, Gauge, Settings, ShieldCheck, UserRound } from "lucide-react";
+import { Activity, BarChart3, Bell, BookOpen, BriefcaseBusiness, FileText, Gauge, Settings, ShieldCheck, UserRound } from "lucide-react";
 
 const items = [
   { label: "Dashboard", icon: Gauge, href: "/" },
@@ -13,6 +13,7 @@ const items = [
   { label: "Resumes", icon: FileText, href: "/resumes" },
   { label: "Profile", icon: UserRound, href: "/profile" },
   { label: "Analytics", icon: BarChart3, href: "/analytics" },
+  { label: "Tasks", icon: Activity, href: "/tasks" },
   { label: "Settings", icon: Settings, href: "/settings" },
 ];
 

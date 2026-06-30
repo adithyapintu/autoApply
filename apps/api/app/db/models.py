@@ -36,6 +36,7 @@ class Profile(Base, TimestampMixin):
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), unique=True)
+    user: Mapped["User"] = relationship(back_populates="profile")
     years_experience: Mapped[float | None] = mapped_column(Numeric(4, 1))
     seniority: Mapped[str | None] = mapped_column(String(64))
     domain_expertise: Mapped[list[str]] = mapped_column(JSONB, default=list)
@@ -230,6 +231,21 @@ class AuditLog(Base):
     resource_id: Mapped[str | None] = mapped_column(String(120))
     log_metadata: Mapped[dict] = mapped_column("metadata", JSONB, default=dict)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now_utc)
+
+
+class TaskLog(Base):
+    __tablename__ = "task_logs"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"))
+    celery_task_id: Mapped[str] = mapped_column(String(255), index=True)
+    task_name: Mapped[str] = mapped_column(String(120))
+    status: Mapped[str] = mapped_column(String(64), default="pending")
+    params: Mapped[dict] = mapped_column(JSONB, default=dict)
+    result: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now_utc)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=now_utc, onupdate=now_utc)
 
 
 class SystemSetting(Base):

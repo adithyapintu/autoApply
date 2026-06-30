@@ -20,3 +20,6 @@ class ResumeResponse(BaseModel):
     mime_type: str
     parsed_json: dict | None
 
+    class Config:
+        from_attributes = True
+

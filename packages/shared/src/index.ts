@@ -7,6 +7,58 @@ export type AnalyticsSummary = {
   average_match_score: number;
 };
 
+export type FunnelStage = { stage: string; count: number };
+
+export type FunnelData = {
+  stages: FunnelStage[];
+  total: number;
+  median_days_to_response: number | null;
+  match_score_correlation: {
+    high_score_response_rate: number;
+    low_score_response_rate: number;
+    high_score_count: number;
+    low_score_count: number;
+  };
+};
+
+export type SourceRow = {
+  source: string;
+  total: number;
+  response_rate: number;
+  interview_rate: number;
+  offer_rate: number;
+  avg_match_score: number | null;
+};
+
+export type VelocityData = {
+  daily: { date: string; count: number }[];
+  rolling_7day_avg: number;
+  total_last_30_days: number;
+  suggested_monthly_target: number;
+  warnings: string[];
+};
+
+export type BackgroundTask = {
+  id: string;
+  celery_task_id: string;
+  task_name: string;
+  label: string;
+  status: "pending" | "running" | "retrying" | "success" | "failed" | "cancelled" | "unknown";
+  params: Record<string, string | null>;
+  result: Record<string, unknown> | null;
+  error: string | null;
+  created_at: string | null;
+  updated_at: string | null;
+};
+
+export type MarketSkill = { skill: string; demand: number; in_profile: boolean };
+
+export type MarketData = {
+  top_skills: MarketSkill[];
+  total_jobs_analyzed: number;
+  profile_skill_count: number;
+};
+
 export type JobItem = {
   id: string;
   title: string;

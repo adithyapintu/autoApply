@@ -6,7 +6,19 @@ import { Sidebar } from "@/components/sidebar";
 import { api } from "@/lib/api";
 import type { JobItem } from "@autoapply/shared";
 
-const SOURCES = ["greenhouse", "lever", "ashby", "smartrecruiters", "workday", "wellfound"];
+const SOURCES = [
+  { value: "all",            label: "All job boards",      type: "keyword",  placeholder: "e.g. Python developer, remote" },
+  { value: "linkedin",       label: "LinkedIn",            type: "keyword",  placeholder: "e.g. Frontend engineer, New York" },
+  { value: "indeed",         label: "Indeed",              type: "keyword",  placeholder: "e.g. Data scientist, remote" },
+  { value: "naukri",         label: "Naukri",              type: "keyword",  placeholder: "e.g. React developer, Bangalore" },
+  { value: "wellfound",      label: "Wellfound",           type: "keyword",  placeholder: "e.g. Founding engineer, Series A" },
+  { value: "greenhouse",     label: "Greenhouse",          type: "slug",     placeholder: "e.g. stripe,vercel,linear" },
+  { value: "lever",          label: "Lever",               type: "slug",     placeholder: "e.g. netflix,figma,notion" },
+  { value: "ashby",          label: "Ashby",               type: "slug",     placeholder: "e.g. brex,retool,ramp" },
+  { value: "smartrecruiters",label: "SmartRecruiters",     type: "slug",     placeholder: "e.g. ikea,bosch" },
+  { value: "workday",        label: "Workday",             type: "slug",     placeholder: "e.g. microsoft,adobe" },
+  { value: "company_pages",  label: "Company career pages",type: "domain",   placeholder: "e.g. stripe.com,notion.so,linear.app" },
+];
 
 export default function JobsPage() {
   const [token, setToken] = useState<string | null>(null);
@@ -14,8 +26,10 @@ export default function JobsPage() {
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(false);
   const [discovering, setDiscovering] = useState(false);
-  const [discoverSource, setDiscoverSource] = useState("greenhouse");
+  const [discoverSource, setDiscoverSource] = useState("all");
   const [discoverQuery, setDiscoverQuery] = useState("");
+
+  const activeSource = SOURCES.find((s) => s.value === discoverSource) ?? SOURCES[0];
   const [message, setMessage] = useState<string | null>(null);
 
   useEffect(() => {
@@ -98,19 +112,35 @@ export default function JobsPage() {
                 <select
                   value={discoverSource}
                   onChange={(e) => setDiscoverSource(e.target.value)}
-                  className="rounded-md border border-stone-200 bg-white px-3 py-2 text-sm outline-none"
+                  className="rounded-md border border-stone-200 bg-white px-3 py-2 text-sm outline-none focus:border-moss"
                 >
-                  {SOURCES.map((s) => <option key={s} value={s}>{s}</option>)}
+                  <optgroup label="Job Boards">
+                    {SOURCES.filter((s) => s.type === "keyword").map((s) => (
+                      <option key={s.value} value={s.value}>{s.label}</option>
+                    ))}
+                  </optgroup>
+                  <optgroup label="ATS Platforms (company slugs)">
+                    {SOURCES.filter((s) => s.type === "slug").map((s) => (
+                      <option key={s.value} value={s.value}>{s.label}</option>
+                    ))}
+                  </optgroup>
+                  <optgroup label="Direct">
+                    {SOURCES.filter((s) => s.type === "domain").map((s) => (
+                      <option key={s.value} value={s.value}>{s.label}</option>
+                    ))}
+                  </optgroup>
                 </select>
               </div>
-              <div className="flex-1 min-w-[200px]">
+              <div className="flex-1 min-w-[220px]">
                 <label className="mb-1 block text-xs text-stone-500">
-                  Company slug(s) or keyword
+                  {activeSource.type === "keyword" && "Keywords / role"}
+                  {activeSource.type === "slug" && "Company slug(s) — comma-separated"}
+                  {activeSource.type === "domain" && "Company domain(s) — comma-separated"}
                 </label>
                 <input
                   value={discoverQuery}
                   onChange={(e) => setDiscoverQuery(e.target.value)}
-                  placeholder="e.g. stripe,vercel,linear"
+                  placeholder={activeSource.placeholder}
                   className="w-full rounded-md border border-stone-200 px-3 py-2 text-sm outline-none focus:border-moss"
                 />
               </div>
@@ -123,6 +153,11 @@ export default function JobsPage() {
                 {discovering ? "Queuing…" : "Discover"}
               </button>
             </div>
+            {activeSource.type === "domain" && (
+              <p className="mt-2 text-xs text-stone-400">
+                Auto-detects the ATS (Greenhouse, Lever, or Ashby) used by each company domain.
+              </p>
+            )}
           </section>
 
           {/* Job list */}

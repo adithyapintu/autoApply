@@ -76,7 +76,14 @@ async def create_task(
     await uow.commit()
 
     from app.worker import run_automation
-    run_automation.delay(str(db_task.id), str(payload.target_url), payload.site_adapter, payload.answers)
+    celery_task = run_automation.delay(str(db_task.id), str(payload.target_url), payload.site_adapter, payload.answers)
+    await uow.task_logs.create(
+        user_id=current_user.id,
+        celery_task_id=celery_task.id,
+        task_name="run_automation",
+        params={"automation_task_id": str(db_task.id), "site_adapter": payload.site_adapter, "target_url": str(payload.target_url)},
+    )
+    await uow.commit()
 
     return {
         "status": "queued",

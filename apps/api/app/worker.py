@@ -69,25 +69,33 @@ def parse_resume(resume_id: str) -> dict[str, str]:
 @celery_app.task(name="app.worker.discover_jobs", autoretry_for=(Exception,), retry_backoff=True, max_retries=3)
 def discover_jobs(user_id: str, source: str, query: str = "", location: str | None = None) -> dict:
     async def _inner():
-        from app.modules.jobs.connectors.registry import get_connector
+        from app.modules.jobs.connectors.registry import get_connector, get_keyword_connectors
         from app.db.session import get_session
         from app.db.repositories import UnitOfWork
+        import asyncio
 
-        connector = get_connector(source)
-        if connector is None:
-            return {"error": f"unknown_source:{source}"}
-
-        dtos = await connector.search(query=query, location=location, limit=50)
+        # source="all" fans out across all keyword-based connectors in parallel
+        if source == "all":
+            connectors = get_keyword_connectors()
+            dto_lists = await asyncio.gather(
+                *[c.search(query=query, location=location, limit=25) for c in connectors],
+                return_exceptions=True,
+            )
+            dtos = [dto for result in dto_lists if isinstance(result, list) for dto in result]
+        else:
+            connector = get_connector(source)
+            if connector is None:
+                return {"error": f"unknown_source:{source}"}
+            dtos = await connector.search(query=query, location=location, limit=50)
 
         async for session in get_session():
             uow = UnitOfWork(session)
             job_ids = []
             for dto in dtos:
-                job = await uow.jobs.upsert_from_dto(dto.model_dump())
+                job = await uow.jobs.upsert_from_dto(dto.model_dump(mode="json"))
                 job_ids.append(str(job.id))
             await uow.commit()
 
-        # Queue embedding generation for each new/updated job
         for job_id in job_ids:
             embed_job.delay(job_id)
 
@@ -361,7 +369,7 @@ def process_saved_search(search_id: str, user_id: str) -> dict:
             dtos = await connector.search(query=ss.query, location=ss.location, limit=50)
             new_jobs = []
             for dto in dtos:
-                job = await uow.jobs.upsert_from_dto(dto.model_dump())
+                job = await uow.jobs.upsert_from_dto(dto.model_dump(mode="json"))
                 new_jobs.append(job)
             await uow.commit()
 
